@@ -228,18 +228,18 @@ class ProcessData:
             train_rest_df[num_col] = train_rest_df[num_col].astype('float')
             test_rest_df[num_col] = test_rest_df[num_col].astype('float')
 
-        minMaxScaler = MinMaxScaler()
+        train_MinMaxScaler = MinMaxScaler()
 
         normalized_train_df = pd.DataFrame(
-            minMaxScaler.fit_transform(train_rest_df.astype('float'))
+            train_MinMaxScaler.fit_transform(train_rest_df.astype('float'))
         )
         normalized_train_df.columns = train_rest_df.columns
         normalized_train_df.index = train_rest_df.index
 
-        minMaxScaler = MinMaxScaler()
+        test_MinMaxScaler = MinMaxScaler()
 
         normalized_test_df = pd.DataFrame(
-            minMaxScaler.fit_transform(test_rest_df.astype('float'))
+            test_MinMaxScaler.fit_transform(test_rest_df.astype('float'))
         )
         normalized_test_df.columns = test_rest_df.columns
         normalized_test_df.index = test_rest_df.index
