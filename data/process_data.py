@@ -14,6 +14,14 @@ class ProcessData:
         self.originals_dir = '../data/originals'
         self.files_dir = '../data/files'
 
+        if not path.exists(self.originals_dir):
+            raise Exception('{} directory not found.'.format(
+                self.originals_dir
+            ))
+
+        if not path.exists(self.files_dir):
+            makedirs(self.files_dir)
+
         self.input_train_file = '{}/{}'.format(self.originals_dir, 'train.zip')
         self.input_test_file = '{}/{}'.format(self.originals_dir, 'test.zip')
 
@@ -21,13 +29,13 @@ class ProcessData:
         self.val_file = '{}/{}'.format(self.files_dir, 'val.zip')
         self.test_file = '{}/{}'.format(self.files_dir, 'test.zip')
 
-    def load_data(self, data_path):
+    def load_data(self, zip_path):
         JSON_COLUMNS = [
             'device', 'geoNetwork', 'totals', 'trafficSource'
         ]
 
         df = pd.read_csv(
-            data_path,
+            zip_path,
             converters={column: json.loads for column in JSON_COLUMNS},
             dtype={'fullVisitorId': 'str'},
             compression='zip'
@@ -46,16 +54,11 @@ class ProcessData:
 
         print(
             '\nLoaded {} rows with {} columns from {}.\n'.format(
-                rows, columns, data_path
+                rows, columns, zip_path
             )
         )
 
     def load(self):
-        if not path.exists(self.originals_dir):
-            raise Exception('{} directory not found.'.format(
-                self.originals_dir
-            ))
-
         print('Loading train data from {}'.format(self.input_train_file))
         self.train_df = self.load_data(self.input_train_file)
 
@@ -164,6 +167,8 @@ class ProcessData:
         ]
 
         cols_not_in_test = set(train_df_cols).difference(set(test_df_cols))
+
+        print('\nColumns not in test dataset: {}'.format(cols_not_in_test))
 
         train_const_cols = const_cols + ['trafficSource.campaignCode']
 
@@ -303,9 +308,6 @@ class ProcessData:
         self.test_X = test_X
 
     def write_to_csv(self):
-        if not path.exists(self.files_dir):
-            makedirs(self.files_dir)
-
         self.dev_X.to_csv(self.train_file, index=False, compression='zip')
         self.val_X.to_csv(self.val_file, index=False, compression='zip')
         self.test_X.to_csv(self.test_file, index=False, compression='zip')
