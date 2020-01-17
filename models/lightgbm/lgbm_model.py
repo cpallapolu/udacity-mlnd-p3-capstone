@@ -7,7 +7,7 @@ from os import path
 from sklearn.metrics import mean_squared_error
 
 
-class LightGBM:
+class LGBMPredictor:
     def __init__(self):
         self.data_dir = '../../datasets'
 
