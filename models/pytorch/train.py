@@ -2,13 +2,12 @@
 import argparse
 import json
 import os
-import pickle
 import pandas as pd
 import torch
 import torch.optim as optim
 import torch.utils.data
 
-from model import LSTMClassifier
+from model import LSTMPredictor
 
 
 def model_fn(model_dir):
@@ -24,21 +23,15 @@ def model_fn(model_dir):
 
     # Determine the device and construct the model.
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = LSTMClassifier(
+    model = LSTMPredictor(
         model_info['embedding_dim'],
-        model_info['hidden_dim'],
-        model_info['vocab_size']
+        model_info['hidden_dim']
         )
 
     # Load the stored model parameters.
     model_path = os.path.join(model_dir, 'model.pth')
     with open(model_path, 'rb') as f:
         model.load_state_dict(torch.load(f))
-
-    # Load the saved word_dict.
-    word_dict_path = os.path.join(model_dir, 'word_dict.pkl')
-    with open(word_dict_path, 'rb') as f:
-        model.word_dict = pickle.load(f)
 
     model.to(device).eval()
 
@@ -134,13 +127,6 @@ if __name__ == '__main__':
             'metavar': 'N',
             'help': 'size of the hidden dimension (default: 100)'
         },
-        {
-            'name': '--vocab_size',
-            'type': int,
-            'default': 5000,
-            'metavar': 'N',
-            'help': 'size of the vocabulary (default: 5000)'
-        },
         # SageMaker Parameters
         {
             'name': '--hosts',
@@ -199,6 +185,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     print('Using device {}.'.format(device))
 
     torch.manual_seed(args.seed)
@@ -207,14 +194,11 @@ if __name__ == '__main__':
     train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
 
     # Build the model.
-    model = LSTMClassifier(
-        args.embedding_dim,
-        args.hidden_dim,
-        args.vocab_size
-    ).to(device)
+    model = LSTMPredictor(args.embedding_dim, args.hidden_dim).to(device)
 
-    print('Model loaded with embedding_dim {}, hidden_dim {}, vocab_size {}.'
-          .format(args.embedding_dim, args.hidden_dim, args.vocab_size))
+    print('Model loaded with embedding_dim {}, hidden_dim {}.'.format(
+        args.embedding_dim, args.hidden_dim
+    ))
 
     # Train the model.
     optimizer = optim.Adam(model.parameters())
@@ -227,15 +211,9 @@ if __name__ == '__main__':
     with open(model_info_path, 'wb') as f:
         model_info = {
             'embedding_dim': args.embedding_dim,
-            'hidden_dim': args.hidden_dim,
-            'vocab_size': args.vocab_size,
+            'hidden_dim': args.hidden_dim
         }
         torch.save(model_info, f)
-
-    # Save the word_dict
-    word_dict_path = os.path.join(args.model_dir, 'word_dict.pkl')
-    with open(word_dict_path, 'wb') as f:
-        pickle.dump(model.word_dict, f)
 
     # Save the model parameters
     model_path = os.path.join(args.model_dir, 'model.pth')
