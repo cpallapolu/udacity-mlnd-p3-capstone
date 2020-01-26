@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import pandas as pd
+import numpy as np
 import torch
 import torch.optim as optim
 import torch.utils.data
@@ -43,13 +44,22 @@ def _get_train_data_loader(batch_size, training_dir):
     print('Get train data loader.')
 
     train_data = pd.read_csv(
-        os.path.join(training_dir, 'train.csv'),
+        os.path.join(training_dir, 'train.zip'),
+        dtype={'fullVisitorId': 'str'},
+        compression='zip',
         header=None,
         names=None
     )
 
-    train_y = torch.from_numpy(train_data[[0]].values).float().squeeze()
-    train_X = torch.from_numpy(train_data.drop([0], axis=1).values).long()
+    train_log_y = np.log1p(train_data['totals.transactionRevenue'].values)
+
+    train_X = train_data.drop(
+        ['totals.transactionRevenue', 'fullVisitorId'],
+        axis=1
+    ).values
+
+    train_y = torch.from_numpy(train_log_y).float().squeeze()
+    train_X = torch.from_numpy(train_X).long()
 
     train_ds = torch.utils.data.TensorDataset(train_X, train_y)
 
@@ -60,6 +70,7 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device):
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss = 0
+
         for batch in train_loader:
             batch_X, batch_y = batch
 
@@ -75,6 +86,7 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device):
             optimizer.step()
 
             total_loss += loss.data.item()
+
         print('Epoch: {}, BCELoss: {}'.format(
             epoch, total_loss / len(train_loader)
         ))
