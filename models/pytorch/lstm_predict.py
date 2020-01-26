@@ -3,7 +3,7 @@ import os
 import torch
 import torch.utils.data
 
-from model import LSTMPredictor
+from lstm_model import LSTMPredictor
 
 
 def model_fn(model_dir):

@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 import torch.utils.data
 
-from model import LSTMPredictor
+from lstm_model import LSTMPredictor
 
 
 def model_fn(model_dir):
@@ -40,11 +40,11 @@ def model_fn(model_dir):
     return model
 
 
-def _get_train_data_loader(batch_size, train_file):
+def _get_train_data_loader(batch_size, training_dir):
     print('Get train data loader.')
 
     train_data = pd.read_csv(
-        train_file,
+        os.path.join(training_dir, 'train.zip'),
         dtype={'fullVisitorId': 'str'},
         compression='zip'
     )
@@ -57,14 +57,16 @@ def _get_train_data_loader(batch_size, train_file):
     ).values
 
     train_y = torch.from_numpy(train_y).float().squeeze()
-    train_X = torch.from_numpy(train_X).long()
+    train_X = torch.from_numpy(train_X).float()
+
+    train_X = train_X.reshape(765707, 1, 24)
 
     train_ds = torch.utils.data.TensorDataset(train_X, train_y)
+    
+    return torch.utils.data.DataLoader(train_ds, shuffle=True, batch_size=batch_size)
 
-    return torch.utils.data.DataLoader(train_ds, batch_size=batch_size)
 
-
-def train(model, train_loader, epochs, optimizer, loss_fn, device, every_num):
+def train(model, train_loader, epochs, optimizer, loss_fn, device, every_num=10):
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss = 0
@@ -84,11 +86,10 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device, every_num):
             optimizer.step()
 
             total_loss += loss.data.item()
+            
+            print('Epoch: {}, BCELoss: {}'.format(epoch, total_loss / len(train_loader)))
+#         if every_num % 10 == 0:
 
-        if every_num % 10 == 0:
-            print('Epoch: {}, BCELoss: {}'.format(
-                epoch, total_loss / len(train_loader)
-            ))
 
 
 if __name__ == '__main__':
@@ -138,6 +139,13 @@ if __name__ == '__main__':
             'metavar': 'N',
             'help': 'size of the hidden dimension (default: 100)'
         },
+        {
+            'name': '--output_dim',
+            'type': int,
+            'default': 1,
+            'metavar': 'N',
+            'help': 'size of the output dimension (default: 1)'
+        },
         # SageMaker Parameters
         {
             'name': '--hosts',
@@ -186,11 +194,11 @@ if __name__ == '__main__':
 
     for parser_arg in parser_args:
         parser.add_argument(
-            parser_arg.name,
-            type=parser_arg.type,
-            default=parser_arg.default,
-            metavar=parser_arg.metavar,
-            help=parser_arg.help
+            parser_arg['name'],
+            type=parser_arg['type'],
+            default=parser_arg['default'],
+            metavar=parser_arg['metavar'],
+            help=parser_arg['help']
         )
 
     args = parser.parse_args()
@@ -215,7 +223,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = torch.nn.BCELoss()
 
-    train(model, train_loader, args.epochs, optimizer, loss_fn, device)
+    train(model, train_loader, args.epochs, optimizer, loss_fn, device, 10)
 
     # Save the parameters used to construct the model
     model_info_path = os.path.join(args.model_dir, 'model_info.pth')
