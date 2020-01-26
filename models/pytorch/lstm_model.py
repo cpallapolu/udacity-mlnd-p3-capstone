@@ -3,10 +3,10 @@ import torch.nn as nn
 
 
 class LSTMPredictor(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim):
+    def __init__(self, input_dim, hidden_dim):
         super(LSTMPredictor, self).__init__()
 
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim)
+        self.lstm = nn.LSTM(input_dim, hidden_dim)
         self.dense = nn.Linear(in_features=hidden_dim, out_features=1)
         self.sig = nn.Sigmoid()
 

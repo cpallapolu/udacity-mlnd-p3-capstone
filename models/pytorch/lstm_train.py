@@ -25,7 +25,7 @@ def model_fn(model_dir):
     # Determine the device and construct the model.
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = LSTMPredictor(
-        model_info['embedding_dim'],
+        model_info['input_dim'],
         model_info['hidden_dim']
         )
 
@@ -40,25 +40,23 @@ def model_fn(model_dir):
     return model
 
 
-def _get_train_data_loader(batch_size, training_dir):
+def _get_train_data_loader(batch_size, train_file):
     print('Get train data loader.')
 
     train_data = pd.read_csv(
-        os.path.join(training_dir, 'train.zip'),
+        train_file,
         dtype={'fullVisitorId': 'str'},
-        compression='zip',
-        header=None,
-        names=None
+        compression='zip'
     )
 
-    train_log_y = np.log1p(train_data['totals.transactionRevenue'].values)
+    train_y = np.log1p(train_data['totals.transactionRevenue'].values)
 
     train_X = train_data.drop(
         ['totals.transactionRevenue', 'fullVisitorId'],
         axis=1
     ).values
 
-    train_y = torch.from_numpy(train_log_y).float().squeeze()
+    train_y = torch.from_numpy(train_y).float().squeeze()
     train_X = torch.from_numpy(train_X).long()
 
     train_ds = torch.utils.data.TensorDataset(train_X, train_y)
@@ -66,7 +64,7 @@ def _get_train_data_loader(batch_size, training_dir):
     return torch.utils.data.DataLoader(train_ds, batch_size=batch_size)
 
 
-def train(model, train_loader, epochs, optimizer, loss_fn, device):
+def train(model, train_loader, epochs, optimizer, loss_fn, device, every_num):
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss = 0
@@ -87,9 +85,10 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device):
 
             total_loss += loss.data.item()
 
-        print('Epoch: {}, BCELoss: {}'.format(
-            epoch, total_loss / len(train_loader)
-        ))
+        if every_num % 10 == 0:
+            print('Epoch: {}, BCELoss: {}'.format(
+                epoch, total_loss / len(train_loader)
+            ))
 
 
 if __name__ == '__main__':
@@ -126,11 +125,11 @@ if __name__ == '__main__':
         },
         # Model Parameters
         {
-            'name': '--embedding_dim',
+            'name': '--input_dim',
             'type': int,
             'default': 32,
             'metavar': 'N',
-            'help': 'size of the word embeddings (default: 32)'
+            'help': 'size of input feature (default: 32)'
         },
         {
             'name': '--hidden_dim',
@@ -206,14 +205,14 @@ if __name__ == '__main__':
     train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
 
     # Build the model.
-    model = LSTMPredictor(args.embedding_dim, args.hidden_dim).to(device)
+    model = LSTMPredictor(args.input_dim, args.hidden_dim).to(device)
 
-    print('Model loaded with embedding_dim {}, hidden_dim {}.'.format(
-        args.embedding_dim, args.hidden_dim
+    print('Model loaded with input_dim {}, hidden_dim {}.'.format(
+        args.input_dim, args.hidden_dim
     ))
 
     # Train the model.
-    optimizer = optim.Adam(model.parameters())
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = torch.nn.BCELoss()
 
     train(model, train_loader, args.epochs, optimizer, loss_fn, device)
@@ -222,7 +221,7 @@ if __name__ == '__main__':
     model_info_path = os.path.join(args.model_dir, 'model_info.pth')
     with open(model_info_path, 'wb') as f:
         model_info = {
-            'embedding_dim': args.embedding_dim,
+            'input_dim': args.input_dim,
             'hidden_dim': args.hidden_dim
         }
         torch.save(model_info, f)

@@ -19,7 +19,7 @@ def model_fn(model_dir):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model = LSTMPredictor(
-        model_info['embedding_dim'],
+        model_info['input_dim'],
         model_info['hidden_dim']
     )
 
@@ -54,8 +54,7 @@ def predict_fn(input_data, model):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    data = input_data
-    data = data.to(device)
+    data = input_data.to(device)
 
     # Make sure to put the model into evaluation mode
     model.eval()
