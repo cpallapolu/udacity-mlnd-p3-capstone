@@ -6,11 +6,11 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.optim as optim
-import torch.utils.data
 import torch.nn as nn
 
-
+from torch.utils.data import TensorDataset, DataLoader
 from lstm_model import LSTMPredictor
+from lstm_rsme_loss import RSMELoss
 
 
 def model_fn(model_dir):
@@ -26,9 +26,11 @@ def model_fn(model_dir):
 
     # Determine the device and construct the model.
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     model = LSTMPredictor(
         model_info['input_dim'],
-        model_info['hidden_dim']
+        model_info['hidden_dim'],
+        model_info['output_dim']
         )
 
     # Load the stored model parameters.
@@ -63,9 +65,9 @@ def _get_train_data_loader(batch_size, training_dir):
 
     train_X = train_X.reshape(765707, 1, 24)
 
-    train_ds = torch.utils.data.TensorDataset(train_X, train_y)
-        
-    return torch.utils.data.DataLoader(train_ds, shuffle=True, batch_size=batch_size)
+    train_ds = TensorDataset(train_X, train_y)
+
+    return DataLoader(train_ds, shuffle=True, batch_size=batch_size)
 
 
 def train(model, train_loader, epochs, optimizer, loss_fn, device, clip=5):
@@ -85,13 +87,13 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device, clip=5):
 
             loss = loss_fn(output.squeeze(), batch_y.float())
             loss.backward()
-            
+
             nn.utils.clip_grad_norm_(model.parameters(), clip)
-            
+
             optimizer.step()
 
             total_loss += loss.data.item()
-            
+
             if idx % 200 == 0:
                 print(
                     'Epoch: {}/{}...'.format(epoch, epochs),
@@ -99,7 +101,7 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device, clip=5):
                     'BCELoss: {:.6f}...'.format(total_loss / len(train_loader))
                 )
 
-                
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -221,15 +223,16 @@ if __name__ == '__main__':
     train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
 
     # Build the model.
-    model = LSTMPredictor(args.input_dim, args.hidden_dim, args.output_dim).to(device)
-
-    print('Model loaded with input_dim {}, hidden_dim {}, outout_dim: {}.'.format(
+    model = LSTMPredictor(
         args.input_dim, args.hidden_dim, args.output_dim
-    ))
+    ).to(device)
+
+    print('Model loaded with input_dim {}, hidden_dim {}, outout_dim: {}.'
+          .format(args.input_dim, args.hidden_dim, args.output_dim))
 
     # Train the model.
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    loss_fn = torch.nn.BCELoss()
+    loss_fn = RSMELoss()
 
     train(model, train_loader, args.epochs, optimizer, loss_fn, device)
 

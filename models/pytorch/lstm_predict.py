@@ -42,7 +42,7 @@ def model_fn(model_dir):
 
 def input_fn(serialized_input_data, content_type):
     print('Deserializing the input data.')
-    
+
     if content_type == NP_CONTENT_TYPE:
         stream = BytesIO(serialized_input_data)
         return np.load(stream)
@@ -53,12 +53,12 @@ def input_fn(serialized_input_data, content_type):
 
 def output_fn(prediction_output, accept):
     print('Serializing the generated output.')
-    
+
     if accept == NP_CONTENT_TYPE:
         stream = BytesIO()
         np.save(stream, prediction_output)
         return stream.getvalue(), accept
-    
+
     raise Exception('Requested unsupported ContentType in Accept: ' + accept)
 
 
@@ -66,8 +66,7 @@ def predict_fn(input_data, model):
     print('Inferring reveunue for input data.')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('input_data::', input_data)
-    
+
     data = torch.from_numpy(input_data.astype('float32'))
     data = data.to(device)
 
