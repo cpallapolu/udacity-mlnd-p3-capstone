@@ -6,9 +6,10 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.optim as optim
-import torch.nn as nn
 
+# from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import TensorDataset, DataLoader
+
 from lstm_model import LSTMPredictor
 from lstm_rsme_loss import RSMELoss
 
@@ -88,18 +89,22 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device, clip=5):
             loss = loss_fn(output.squeeze(), batch_y.float())
             loss.backward()
 
-            nn.utils.clip_grad_norm_(model.parameters(), clip)
+            # nn.utils.clip_grad_norm_(model.parameters(), clip)
 
             optimizer.step()
 
             total_loss += loss.data.item()
 
-            if idx % 200 == 0:
-                print(
-                    'Epoch: {}/{}...'.format(epoch, epochs),
-                    'Step: {}...'.format(idx),
-                    'BCELoss: {:.6f}...'.format(total_loss / len(train_loader))
-                )
+            # if idx % 200 == 0:
+            #     print(
+            #         'Epoch: {}/{}...'.format(epoch, epochs),
+            #         'Step: {}...'.format(idx),
+            #         'BCELoss: {:.6f}...'.format(total_loss/len(train_loader))
+            #     )
+        print(
+            'Epoch: {}...'.format(epoch),
+            'RSMELoss: {:.10f}...'.format(total_loss)
+        )
 
 
 if __name__ == '__main__':
