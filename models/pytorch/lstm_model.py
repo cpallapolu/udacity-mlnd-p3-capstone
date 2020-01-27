@@ -27,7 +27,7 @@ class LSTMPredictor(nn.Module):
 
         lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
 
-        out = self.dropout(lstm_out)
+#         out = self.dropout(lstm_out)
 
         out = self.fc(lstm_out)
 
