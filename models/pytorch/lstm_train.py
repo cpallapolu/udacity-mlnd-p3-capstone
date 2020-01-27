@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-# from torch.nn.utils import clip_grad_norm_
+from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import TensorDataset, DataLoader
 
 from lstm_model import LSTMPredictor
@@ -31,8 +31,9 @@ def model_fn(model_dir):
     model = LSTMPredictor(
         model_info['input_dim'],
         model_info['hidden_dim'],
-        model_info['output_dim']
-        )
+        model_info['output_dim'],
+        model_info['n_layers']
+    )
 
     # Load the stored model parameters.
     model_path = os.path.join(model_dir, 'model.pth')
@@ -76,31 +77,29 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device, clip=5):
         model.train()
         total_loss = 0
 
+        h = model.init_hidden(1024)
+
         for idx, batch in enumerate(train_loader):
             batch_X, batch_y = batch
 
             batch_X = batch_X.to(device)
             batch_y = batch_y.to(device)
 
+            h = tuple([each.data for each in h])
+
             optimizer.zero_grad()
 
-            output = model(batch_X)
+            output, h = model(batch_X, h)
 
             loss = loss_fn(output.squeeze(), batch_y.float())
             loss.backward()
 
-            # nn.utils.clip_grad_norm_(model.parameters(), clip)
+            clip_grad_norm_(model.parameters(), clip)
 
             optimizer.step()
 
             total_loss += loss.data.item()
 
-            # if idx % 200 == 0:
-            #     print(
-            #         'Epoch: {}/{}...'.format(epoch, epochs),
-            #         'Step: {}...'.format(idx),
-            #         'BCELoss: {:.6f}...'.format(total_loss/len(train_loader))
-            #     )
         print(
             'Epoch: {}...'.format(epoch),
             'RSMELoss: {:.10f}...'.format(total_loss / len(train_loader))
@@ -160,6 +159,13 @@ if __name__ == '__main__':
             'default': 1,
             'metavar': 'N',
             'help': 'size of the output dimension (default: 1)'
+        },
+        {
+            'name': '--n_layers',
+            'type': int,
+            'default': 1,
+            'metavar': 'N',
+            'help': 'number of lstm layers (default: 1)'
         },
         # SageMaker Parameters
         {
@@ -229,7 +235,10 @@ if __name__ == '__main__':
 
     # Build the model.
     model = LSTMPredictor(
-        args.input_dim, args.hidden_dim, args.output_dim
+        args.input_dim,
+        args.hidden_dim,
+        args.output_dim,
+        args.n_layers
     ).to(device)
 
     print('Model loaded with input_dim {}, hidden_dim {}, outout_dim: {}.'
@@ -247,7 +256,8 @@ if __name__ == '__main__':
         model_info = {
             'input_dim': args.input_dim,
             'hidden_dim': args.hidden_dim,
-            'output_dim': args.output_dim
+            'output_dim': args.output_dim,
+            'n_layers': args.n_layers
         }
         torch.save(model_info, f)
 

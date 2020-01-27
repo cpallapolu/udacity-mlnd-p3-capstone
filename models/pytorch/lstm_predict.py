@@ -26,7 +26,8 @@ def model_fn(model_dir):
     model = LSTMPredictor(
         model_info['input_dim'],
         model_info['hidden_dim'],
-        model_info['output_dim']
+        model_info['output_dim'],
+        model_info['n_layers']
     )
 
     # Load the store model parameters.
@@ -70,11 +71,13 @@ def predict_fn(input_data, model):
     data = torch.from_numpy(input_data.astype('float32'))
     data = data.to(device)
 
+    h = model.init_hidden(1024)
+
     # Make sure to put the model into evaluation mode
     model.eval()
 
     with torch.no_grad():
-        output = model(data)
+        output, h = model(data, h)
 
     result = torch.round(output).cpu().detach().numpy()
 
