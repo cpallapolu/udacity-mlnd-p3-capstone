@@ -103,7 +103,7 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device, clip=5):
             #     )
         print(
             'Epoch: {}...'.format(epoch),
-            'RSMELoss: {:.10f}...'.format(total_loss)
+            'RSMELoss: {:.10f}...'.format(total_loss / len(train_loader))
         )
 
 
