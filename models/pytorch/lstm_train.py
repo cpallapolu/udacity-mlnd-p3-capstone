@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.utils.data
+import torch.nn as nn
+
 
 from lstm_model import LSTMPredictor
 
@@ -62,16 +64,16 @@ def _get_train_data_loader(batch_size, training_dir):
     train_X = train_X.reshape(765707, 1, 24)
 
     train_ds = torch.utils.data.TensorDataset(train_X, train_y)
-    
+        
     return torch.utils.data.DataLoader(train_ds, shuffle=True, batch_size=batch_size)
 
 
-def train(model, train_loader, epochs, optimizer, loss_fn, device, every_num=10):
+def train(model, train_loader, epochs, optimizer, loss_fn, device, clip=5):
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss = 0
 
-        for batch in train_loader:
+        for idx, batch in enumerate(train_loader):
             batch_X, batch_y = batch
 
             batch_X = batch_X.to(device)
@@ -83,15 +85,21 @@ def train(model, train_loader, epochs, optimizer, loss_fn, device, every_num=10)
 
             loss = loss_fn(output.squeeze(), batch_y.float())
             loss.backward()
+            
+            nn.utils.clip_grad_norm_(model.parameters(), clip)
+            
             optimizer.step()
 
             total_loss += loss.data.item()
             
-            print('Epoch: {}, BCELoss: {}'.format(epoch, total_loss / len(train_loader)))
-#         if every_num % 10 == 0:
+            if idx % 200 == 0:
+                print(
+                    'Epoch: {}/{}...'.format(epoch, epochs),
+                    'Step: {}...'.format(idx),
+                    'BCELoss: {:.6f}...'.format(total_loss / len(train_loader))
+                )
 
-
-
+                
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -213,24 +221,25 @@ if __name__ == '__main__':
     train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
 
     # Build the model.
-    model = LSTMPredictor(args.input_dim, args.hidden_dim).to(device)
+    model = LSTMPredictor(args.input_dim, args.hidden_dim, args.output_dim).to(device)
 
-    print('Model loaded with input_dim {}, hidden_dim {}.'.format(
-        args.input_dim, args.hidden_dim
+    print('Model loaded with input_dim {}, hidden_dim {}, outout_dim: {}.'.format(
+        args.input_dim, args.hidden_dim, args.output_dim
     ))
 
     # Train the model.
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = torch.nn.BCELoss()
 
-    train(model, train_loader, args.epochs, optimizer, loss_fn, device, 10)
+    train(model, train_loader, args.epochs, optimizer, loss_fn, device)
 
     # Save the parameters used to construct the model
     model_info_path = os.path.join(args.model_dir, 'model_info.pth')
     with open(model_info_path, 'wb') as f:
         model_info = {
             'input_dim': args.input_dim,
-            'hidden_dim': args.hidden_dim
+            'hidden_dim': args.hidden_dim,
+            'output_dim': args.output_dim
         }
         torch.save(model_info, f)
 

@@ -2,8 +2,13 @@
 import os
 import torch
 import torch.utils.data
+import numpy as np
 
+from six import BytesIO
 from lstm_model import LSTMPredictor
+
+
+NP_CONTENT_TYPE = 'application/x-npy'
 
 
 def model_fn(model_dir):
@@ -20,7 +25,8 @@ def model_fn(model_dir):
 
     model = LSTMPredictor(
         model_info['input_dim'],
-        model_info['hidden_dim']
+        model_info['hidden_dim'],
+        model_info['output_dim']
     )
 
     # Load the store model parameters.
@@ -36,9 +42,10 @@ def model_fn(model_dir):
 
 def input_fn(serialized_input_data, content_type):
     print('Deserializing the input data.')
-    if content_type == 'text/plain':
-        data = serialized_input_data.decode('utf-8')
-        return data
+    
+    if content_type == NP_CONTENT_TYPE:
+        stream = BytesIO(serialized_input_data)
+        return np.load(stream)
     raise Exception(
         'Requested unsupported ContentType in content_type: ' + content_type
     )
@@ -46,22 +53,27 @@ def input_fn(serialized_input_data, content_type):
 
 def output_fn(prediction_output, accept):
     print('Serializing the generated output.')
-    return str(prediction_output)
+    
+    if accept == NP_CONTENT_TYPE:
+        stream = BytesIO()
+        np.save(stream, prediction_output)
+        return stream.getvalue(), accept
+    
+    raise Exception('Requested unsupported ContentType in Accept: ' + accept)
 
 
 def predict_fn(input_data, model):
     print('Inferring reveunue for input data.')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    data = input_data.to(device)
+    print('input_data::', input_data)
+    
+    data = torch.from_numpy(input_data.astype('float32'))
+    data = data.to(device)
 
     # Make sure to put the model into evaluation mode
     model.eval()
 
-    # TODO: Compute the result of applying the model to the input data.
-    # The variable `result` should be a numpy array which contains a single
-    # integer which is either 1 or 0
     with torch.no_grad():
         output = model(data)
 

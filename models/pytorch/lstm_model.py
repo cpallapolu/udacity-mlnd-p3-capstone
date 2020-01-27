@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 
 class LSTMPredictor(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim=1):
+    def __init__(self, input_dim, hidden_dim, output_dim):
         super(LSTMPredictor, self).__init__()
 
         self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
