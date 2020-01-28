@@ -18,7 +18,7 @@ class LSTMPredictor(nn.Module):
             batch_first=True
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(0.3)
+        self.dropout = nn.Dropout(0.5)
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -26,9 +26,11 @@ class LSTMPredictor(nn.Module):
 
         out = self.dropout(lstm_out)
 
-        out = self.fc(lstm_out)
+        out = self.fc(out)
+        
+        out = self.relu(out)
 
-        return self.relu(out.squeeze())
+        return out.squeeze()
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data

@@ -98,7 +98,7 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
 
             total_loss += loss.item()
 
-            if counter % 500 == 0:
+            if counter % 1000 == 0:
                 val_losses = []
 
                 model.eval()
@@ -271,7 +271,7 @@ if __name__ == '__main__':
               args.input_dim, args.hidden_dim, args.output_dim, args.n_layers))
 
     # Train the model.
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.00001)
     loss_fn = RSMELoss()
 
     train(
