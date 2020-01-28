@@ -16,22 +16,27 @@ class LSTMPredictor(nn.Module):
             hidden_dim,
             n_layers,
             batch_first=True,
-            dropout=0.3
+            dropout=0.7
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(0.3)
+        self.dropout = nn.Dropout(0.7)
         self.relu = nn.ReLU()
 
     def forward(self, x):
         lstm_out, _ = self.lstm(x)
 
-        lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
-
+#         lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
+        print('\nafter lstm::', x.shape)
         out = self.dropout(lstm_out)
+        print('after dropout::', x.shape, out.shape)
 
         out = self.fc(lstm_out)
+        print('after fc::', x.shape, out.shape)
+        
+        out = self.relu(out.squeeze())
+        print('after relu::', x.shape, out.shape)
 
-        return self.relu(out.squeeze())
+        return out
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data

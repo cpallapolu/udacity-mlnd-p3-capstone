@@ -45,62 +45,33 @@ def model_fn(model_dir):
     return model
 
 
-def _get_val_data_loader(batch_size, val_dir):
-    print('Get val data loader.')
+def _get_data_loader(batch_size, zip_file_path):
+    print('Get data loader from {}.'.format(zip_file_path))
 
-    val_data = pd.read_csv(
-        os.path.join(val_dir, 'val.zip'),
+    data_df = pd.read_csv(
+        zip_file_path,
         dtype={'fullVisitorId': 'str'},
         compression='zip'
     )
 
-    total_rows = val_data.shape[0] - (val_data.shape[0] % batch_size)
-    val_data = val_data.iloc[:total_rows]
+    total_rows = data_df.shape[0] - (data_df.shape[0] % batch_size)
+    data_df = data_df.iloc[:total_rows]
 
-    val_y = np.log1p(val_data['totals.transactionRevenue'].values)
+    data_y = np.log1p(data_df['totals.transactionRevenue'].values)
 
-    val_X = val_data.drop(
+    data_X = data_df.drop(
         ['totals.transactionRevenue', 'fullVisitorId'],
         axis=1
     ).values
 
-    val_y = torch.from_numpy(val_y).float().squeeze()
-    val_X = torch.from_numpy(val_X).float()
+    data_y = torch.from_numpy(data_y).float().squeeze()
+    data_X = torch.from_numpy(data_X).float()
 
-    val_X = val_X.reshape(val_X.shape[0], 1, val_X.shape[1])
+    data_X = data_X.reshape(data_X.shape[0], 1, data_X.shape[1])
 
-    val_ds = TensorDataset(val_X, val_y)
+    data_ds = TensorDataset(data_X, data_y)
 
-    return DataLoader(val_ds, shuffle=True, batch_size=batch_size)
-
-
-def _get_train_data_loader(batch_size, training_dir):
-    print('Get train data loader.')
-
-    train_data = pd.read_csv(
-        os.path.join(training_dir, 'train.zip'),
-        dtype={'fullVisitorId': 'str'},
-        compression='zip'
-    )
-
-    total_rows = train_data.shape[0] - (train_data.shape[0] % batch_size)
-    train_data = train_data.iloc[:total_rows]
-
-    train_y = np.log1p(train_data['totals.transactionRevenue'].values)
-
-    train_X = train_data.drop(
-        ['totals.transactionRevenue', 'fullVisitorId'],
-        axis=1
-    ).values
-
-    train_y = torch.from_numpy(train_y).float().squeeze()
-    train_X = torch.from_numpy(train_X).float()
-
-    train_X = train_X.reshape(train_X.shape[0], 1, train_X.shape[1])
-
-    train_ds = TensorDataset(train_X, train_y)
-
-    return DataLoader(train_ds, shuffle=True, batch_size=batch_size)
+    return DataLoader(data_ds, shuffle=True, batch_size=batch_size)
 
 
 def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
@@ -286,8 +257,8 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # Load the training data.
-    train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
-    val_loader = _get_val_data_loader(args.batch_size, args.data_dir)
+    train_loader = _get_data_loader(args.batch_size, os.path.join(args.data_dir, 'train.zip'))
+    val_loader = _get_data_loader(args.batch_size, os.path.join(args.data_dir, 'val.zip'))
 
     # Build the model.
     model = LSTMPredictor(
