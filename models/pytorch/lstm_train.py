@@ -57,7 +57,7 @@ def _get_data_loader(batch_size, zip_file_path):
     total_rows = data_df.shape[0] - (data_df.shape[0] % batch_size)
     data_df = data_df.iloc[:total_rows]
 
-    data_y = np.log1p(data_df['totals.transactionRevenue'].values)
+    data_y = data_df['totals.transactionRevenue'].values
 
     data_X = data_df.drop(
         ['totals.transactionRevenue', 'fullVisitorId'],
@@ -257,8 +257,12 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # Load the training data.
-    train_loader = _get_data_loader(args.batch_size, os.path.join(args.data_dir, 'train.zip'))
-    val_loader = _get_data_loader(args.batch_size, os.path.join(args.data_dir, 'val.zip'))
+    train_loader = _get_data_loader(
+        args.batch_size, os.path.join(args.data_dir, 'train.zip')
+    )
+    val_loader = _get_data_loader(
+        args.batch_size, os.path.join(args.data_dir, 'val.zip')
+    )
 
     # Build the model.
     model = LSTMPredictor(
