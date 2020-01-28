@@ -1,7 +1,5 @@
 
 import torch.nn as nn
-import torch.nn.functional as F
-
 import torch
 
 
@@ -20,8 +18,8 @@ class LSTMPredictor(nn.Module):
             batch_first=True
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(0.7)
-#         self.sig = F.relu()
+        self.dropout = nn.Dropout(0.3)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         lstm_out, _ = self.lstm(x)
@@ -30,7 +28,7 @@ class LSTMPredictor(nn.Module):
 
         out = self.fc(lstm_out)
 
-        return F.relu(out.squeeze())
+        return self.relu(out.squeeze())
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data

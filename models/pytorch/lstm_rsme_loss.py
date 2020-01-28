@@ -11,5 +11,5 @@ class RSMELoss(nn.Module):
         self.eps = eps
 
     def forward(self, yhat, y):
-        loss = torch.sqrt(self.mse(yhat, y) + self.eps)
+        loss = torch.sqrt(self.mse(yhat, y))
         return loss

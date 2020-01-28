@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.optim as optim
-import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
 from lstm_model import LSTMPredictor
@@ -54,9 +53,9 @@ def _get_data_loader(batch_size, zip_file_path):
         compression='zip'
     )
 
-    total_rows = data_df.shape[0] - (data_df.shape[0] % batch_size)
+    # total_rows = data_df.shape[0] - (data_df.shape[0] % batch_size)
 
-    data_y = data_df['totals.transactionRevenue'].values
+    data_y = np.log1p(data_df['totals.transactionRevenue'].values)
 
     data_X = data_df.drop(
         ['totals.transactionRevenue', 'fullVisitorId'],
@@ -96,33 +95,34 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
             loss.backward()
 
             optimizer.step()
-            
+
             total_loss += loss.item()
 
-#             if counter % 500 == 0:
-#                 val_losses = []
+            if counter % 500 == 0:
+                val_losses = []
 
-#                 model.eval()
+                model.eval()
 
-#                 for val in val_loader:
-#                     val_X, val_y = val
+                for val in val_loader:
+                    val_X, val_y = val
 
-#                     val_X = val_X.to(device)
-#                     val_y = val_y.to(device)
-#                       with torch.no_grad():
-#                       val_output = model(val_X)
+                    val_X = val_X.to(device)
+                    val_y = val_y.to(device)
 
-#                     val_loss = loss_fn(val_output.squeeze(), val_y.float())
-#                     val_losses.append(val_loss.item())
+                    with torch.no_grad():
+                        val_output = model(val_X)
 
-#                 model.train()
+                    val_loss = loss_fn(val_output.squeeze(), val_y.float())
+                    val_losses.append(val_loss.item())
 
-        print(
-            'Epoch: {}/{}...'.format(epoch, epochs),
-#                     'Step: {}...'.format(counter),
-            'Loss: {:.10f}...'.format(total_loss / len(train_loader))
-#                     'Val Loss: {:.10f}'.format(np.mean(val_losses))
-        )
+                model.train()
+
+                print(
+                    'Epoch: {}/{}...'.format(epoch, epochs),
+                    'Step: {}...'.format(counter),
+                    'Loss: {:.10f}...'.format(total_loss / len(train_loader)),
+                    'Val Loss: {:.10f}'.format(np.mean(val_losses))
+                )
 
 
 if __name__ == '__main__':
@@ -272,8 +272,7 @@ if __name__ == '__main__':
 
     # Train the model.
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-#     loss_fn = RSMELoss()
-    loss_fn = nn.MSELoss()
+    loss_fn = RSMELoss()
 
     train(
         model,
