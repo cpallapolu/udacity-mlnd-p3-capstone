@@ -15,11 +15,10 @@ class LSTMPredictor(nn.Module):
             input_dim,
             hidden_dim,
             n_layers,
-            batch_first=True,
-            dropout=0.5,
+            batch_first=True
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(0.7)
+        self.dropout = nn.Dropout(0.3)
         self.sig = nn.Sigmoid()
 
     def forward(self, x, hidden):
@@ -27,7 +26,7 @@ class LSTMPredictor(nn.Module):
 
         lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
 
-#         out = self.dropout(lstm_out)
+        out = self.dropout(lstm_out)
 
         out = self.fc(lstm_out)
 

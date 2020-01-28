@@ -7,7 +7,6 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import TensorDataset, DataLoader
 
 from lstm_model import LSTMPredictor
@@ -45,32 +44,35 @@ def model_fn(model_dir):
     print('Done loading model.')
     return model
 
+
 def _get_val_data_loader(batch_size, val_dir):
     print('Get val data loader.')
-    
+
     val_data = pd.read_csv(
         os.path.join(val_dir, 'val.zip'),
         dtype={'fullVisitorId': 'str'},
         compression='zip'
     )
-    
+
+    total_rows = val_data.shape[0] - (val_data.shape[0] % batch_size)
+    val_data = val_data.iloc[:total_rows]
+
     val_y = np.log1p(val_data['totals.transactionRevenue'].values)
-    val_y = val_y[:137216]
 
     val_X = val_data.drop(
         ['totals.transactionRevenue', 'fullVisitorId'],
         axis=1
     ).values
-    val_X = val_X[:137216]
-    
+
     val_y = torch.from_numpy(val_y).float().squeeze()
     val_X = torch.from_numpy(val_X).float()
 
     val_X = val_X.reshape(val_X.shape[0], 1, val_X.shape[1])
 
     val_ds = TensorDataset(val_X, val_y)
-    
+
     return DataLoader(val_ds, shuffle=True, batch_size=batch_size)
+
 
 def _get_train_data_loader(batch_size, training_dir):
     print('Get train data loader.')
@@ -81,14 +83,15 @@ def _get_train_data_loader(batch_size, training_dir):
         compression='zip'
     )
 
+    total_rows = train_data.shape[0] - (train_data.shape[0] % batch_size)
+    train_data = train_data.iloc[:total_rows]
+
     train_y = np.log1p(train_data['totals.transactionRevenue'].values)
-    train_y = train_y[:764928]
 
     train_X = train_data.drop(
         ['totals.transactionRevenue', 'fullVisitorId'],
         axis=1
     ).values
-    train_X = train_X[:764928]
 
     train_y = torch.from_numpy(train_y).float().squeeze()
     train_X = torch.from_numpy(train_X).float()
@@ -99,18 +102,20 @@ def _get_train_data_loader(batch_size, training_dir):
 
     return DataLoader(train_ds, shuffle=True, batch_size=batch_size)
 
-def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device, clip=5):
+
+def train(
+    model, train_loader, val_loader, epochs, optimizer, loss_fn, device, clip=5
+):
     counter = 0
 
     for epoch in range(1, epochs + 1):
         model.train()
-        total_loss = 0
 
-        h = model.init_hidden(1024)
+        h = model.init_hidden(512)
 
         for batch in train_loader:
             counter += 1
-            
+
             batch_X, batch_y = batch
 
             batch_X = batch_X.to(device)
@@ -125,39 +130,38 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device, c
             loss = loss_fn(output.squeeze(), batch_y.float())
             loss.backward()
 
-            clip_grad_norm_(model.parameters(), clip)
-
             optimizer.step()
 
-#             total_loss += loss.data.item()
-            
+            # total_loss += loss.data.item()
+
             if counter % 1000 == 0:
-                val_h = model.init_hidden(1024)
+                val_h = model.init_hidden(512)
                 val_losses = []
-                
+
                 model.eval()
-                
+
                 for val in val_loader:
                     val_X, val_y = val
-                    
+
                     val_h = tuple([each.data for each in val_h])
-                    
+
                     val_X = val_X.to(device)
                     val_y = val_y.to(device)
-                    
-                    output, val_h = model(val_X, val_h)
-                    
-                    val_loss = loss_fn(output.squeeze(), val_y.float())
+
+                    val_output, val_h = model(val_X, val_h)
+
+                    val_loss = loss_fn(val_output.squeeze(), val_y.float())
                     val_losses.append(val_loss.item())
-                    
+
                 model.train()
-                
+
                 print(
                     'Epoch: {}/{}...'.format(epoch, epochs),
                     'Step: {}...'.format(counter),
-                    'Loss: {:.6f}...'.format(loss.item()),
-                    'Val Loss: {:.6f}'.format(np.mean(val_losses))
-               )
+                    'Loss: {:.10f}...'.format(loss.item()),
+                    'Val Loss: {:.10f}'.format(np.mean(val_losses))
+                )
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -202,9 +206,9 @@ if __name__ == '__main__':
         {
             'name': '--hidden_dim',
             'type': int,
-            'default': 100,
+            'default': 256,
             'metavar': 'N',
-            'help': 'size of the hidden dimension (default: 100)'
+            'help': 'size of the hidden dimension (default: 256)'
         },
         {
             'name': '--output_dim',
@@ -295,14 +299,24 @@ if __name__ == '__main__':
         args.n_layers
     ).to(device)
 
-    print('Model loaded with input_dim {}, hidden_dim {}, outout_dim: {}, n_layers {}.'
-          .format(args.input_dim, args.hidden_dim, args.output_dim, args.n_layers))
+    print(
+        'Model loaded with input_dim {}, hidden_dim {}, outout_dim: {}, \
+            n_layers {}.'.format(
+              args.input_dim, args.hidden_dim, args.output_dim, args.n_layers))
 
     # Train the model.
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = RSMELoss()
 
-    train(model, train_loader, val_loader, args.epochs, optimizer, loss_fn, device)
+    train(
+        model,
+        train_loader,
+        val_loader,
+        args.epochs,
+        optimizer,
+        loss_fn,
+        device
+    )
 
     # Save the parameters used to construct the model
     model_info_path = os.path.join(args.model_dir, 'model_info.pth')
