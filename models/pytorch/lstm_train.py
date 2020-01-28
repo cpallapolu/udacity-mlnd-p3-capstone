@@ -109,7 +109,7 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
     for epoch in range(1, epochs + 1):
         model.train()
 
-        h = model.init_hidden(1024)
+        # h = model.init_hidden(1024)
 
         for batch in train_loader:
             counter += 1
@@ -119,11 +119,11 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
             batch_X = batch_X.to(device)
             batch_y = batch_y.to(device)
 
-            h = tuple([each.data for each in h])
+            # h = tuple([each.data for each in h])
 
             optimizer.zero_grad()
 
-            output, h = model(batch_X, h)
+            output = model(batch_X)
 
             loss = loss_fn(output.squeeze(), batch_y.float())
             loss.backward()
@@ -133,7 +133,7 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
             # total_loss += loss.data.item()
 
             if counter % 500 == 0:
-                val_h = model.init_hidden(1024)
+                # val_h = model.init_hidden(1024)
                 val_losses = []
 
                 model.eval()
@@ -141,12 +141,12 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
                 for val in val_loader:
                     val_X, val_y = val
 
-                    val_h = tuple([each.data for each in val_h])
+                    # val_h = tuple([each.data for each in val_h])
 
                     val_X = val_X.to(device)
                     val_y = val_y.to(device)
 
-                    val_output, val_h = model(val_X, val_h)
+                    val_output = model(val_X)
 
                     val_loss = loss_fn(val_output.squeeze(), val_y.float())
                     val_losses.append(val_loss.item())
