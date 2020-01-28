@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.optim as optim
-
+import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
 from lstm_model import LSTMPredictor
@@ -55,7 +55,6 @@ def _get_data_loader(batch_size, zip_file_path):
     )
 
     total_rows = data_df.shape[0] - (data_df.shape[0] % batch_size)
-    data_df = data_df.iloc[:total_rows]
 
     data_y = data_df['totals.transactionRevenue'].values
 
@@ -79,8 +78,7 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
 
     for epoch in range(1, epochs + 1):
         model.train()
-
-        # h = model.init_hidden(1024)
+        total_loss = 0
 
         for batch in train_loader:
             counter += 1
@@ -90,8 +88,6 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
             batch_X = batch_X.to(device)
             batch_y = batch_y.to(device)
 
-            # h = tuple([each.data for each in h])
-
             optimizer.zero_grad()
 
             output = model(batch_X)
@@ -100,36 +96,33 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
             loss.backward()
 
             optimizer.step()
+            
+            total_loss += loss.item()
 
-            # total_loss += loss.data.item()
+#             if counter % 500 == 0:
+#                 val_losses = []
 
-            if counter % 500 == 0:
-                # val_h = model.init_hidden(1024)
-                val_losses = []
+#                 model.eval()
 
-                model.eval()
+#                 for val in val_loader:
+#                     val_X, val_y = val
 
-                for val in val_loader:
-                    val_X, val_y = val
+#                     val_X = val_X.to(device)
+#                     val_y = val_y.to(device)
+#                       with torch.no_grad():
+#                       val_output = model(val_X)
 
-                    # val_h = tuple([each.data for each in val_h])
+#                     val_loss = loss_fn(val_output.squeeze(), val_y.float())
+#                     val_losses.append(val_loss.item())
 
-                    val_X = val_X.to(device)
-                    val_y = val_y.to(device)
+#                 model.train()
 
-                    val_output = model(val_X)
-
-                    val_loss = loss_fn(val_output.squeeze(), val_y.float())
-                    val_losses.append(val_loss.item())
-
-                model.train()
-
-                print(
-                    'Epoch: {}/{}...'.format(epoch, epochs),
-                    'Step: {}...'.format(counter),
-                    'Loss: {:.10f}...'.format(loss.item()),
-                    'Val Loss: {:.10f}'.format(np.mean(val_losses))
-                )
+        print(
+            'Epoch: {}/{}...'.format(epoch, epochs),
+#                     'Step: {}...'.format(counter),
+            'Loss: {:.10f}...'.format(total_loss / len(train_loader))
+#                     'Val Loss: {:.10f}'.format(np.mean(val_losses))
+        )
 
 
 if __name__ == '__main__':
@@ -279,7 +272,8 @@ if __name__ == '__main__':
 
     # Train the model.
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    loss_fn = RSMELoss()
+#     loss_fn = RSMELoss()
+    loss_fn = nn.MSELoss()
 
     train(
         model,

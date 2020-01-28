@@ -71,8 +71,6 @@ def predict_fn(input_data, model):
     data = torch.from_numpy(input_data).float()
     data = data.to(device)
 
-    # h = model.init_hidden(1024)
-
     # Make sure to put the model into evaluation mode
     model.eval()
 
