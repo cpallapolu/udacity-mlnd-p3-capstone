@@ -68,10 +68,10 @@ def predict_fn(input_data, model):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    data = torch.from_numpy(input_data)
+    data = torch.from_numpy(input_data).float()
     data = data.to(device)
 
-    h = model.init_hidden(512)
+    h = model.init_hidden(1024)
 
     # Make sure to put the model into evaluation mode
     model.eval()

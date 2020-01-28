@@ -103,15 +103,13 @@ def _get_train_data_loader(batch_size, training_dir):
     return DataLoader(train_ds, shuffle=True, batch_size=batch_size)
 
 
-def train(
-    model, train_loader, val_loader, epochs, optimizer, loss_fn, device, clip=5
-):
+def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
     counter = 0
 
     for epoch in range(1, epochs + 1):
         model.train()
 
-        h = model.init_hidden(512)
+        h = model.init_hidden(1024)
 
         for batch in train_loader:
             counter += 1
@@ -134,8 +132,8 @@ def train(
 
             # total_loss += loss.data.item()
 
-            if counter % 1000 == 0:
-                val_h = model.init_hidden(512)
+            if counter % 500 == 0:
+                val_h = model.init_hidden(1024)
                 val_losses = []
 
                 model.eval()
@@ -177,9 +175,9 @@ if __name__ == '__main__':
         {
             'name': '--batch-size',
             'type': int,
-            'default': 512,
+            'default': 1024,
             'metavar': 'N',
-            'help': 'input batch size for training (default: 512)'
+            'help': 'input batch size for training (default: 1024)'
         },
         {
             'name': '--epochs',
