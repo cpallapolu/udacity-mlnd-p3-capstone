@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn as nn
+
 from torch.utils.data import TensorDataset, DataLoader
 
 from lstm_model import LSTMPredictor
@@ -69,7 +71,7 @@ def _get_data_loader(batch_size, zip_file_path):
 
     data_ds = TensorDataset(data_X, data_y)
 
-    return DataLoader(data_ds, shuffle=True, batch_size=batch_size)
+    return DataLoader(data_ds, batch_size=batch_size)
 
 
 def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
@@ -93,12 +95,14 @@ def train(model, train_loader, val_loader, epochs, optimizer, loss_fn, device):
 
             loss = loss_fn(output.squeeze(), batch_y.float())
             loss.backward()
-
+            
+            nn.utils.clip_grad_norm_(model.parameters(), 5)
+            
             optimizer.step()
 
             total_loss += loss.item()
 
-            if counter % 1000 == 0:
+            if counter % 500 == 0:
                 val_losses = []
 
                 model.eval()
@@ -271,7 +275,7 @@ if __name__ == '__main__':
               args.input_dim, args.hidden_dim, args.output_dim, args.n_layers))
 
     # Train the model.
-    optimizer = optim.Adam(model.parameters(), lr=0.00001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = RSMELoss()
 
     train(
