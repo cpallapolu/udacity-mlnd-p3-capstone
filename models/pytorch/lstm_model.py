@@ -16,10 +16,10 @@ class LSTMPredictor(nn.Module):
             hidden_dim,
             n_layers,
             batch_first=True,
-#             dropout=0.5
+            dropout=0.2
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(0.7)
+        self.dropout = nn.Dropout(0.1)
         self.relu = nn.ReLU()
 
     def forward(self, x):
